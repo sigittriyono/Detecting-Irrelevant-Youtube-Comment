@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import gdown
 
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -196,3 +197,10 @@ class Predictor:
                 progress_callback(min(i + batch_size, total), total)
 
         return results
+        
+    def download_model_if_missing(drive_url: str, model_path: str = "./model"):
+    model_file = os.path.join(model_path, "model.safetensors")
+    if not os.path.exists(model_file):
+        print("Downloading model from Google Drive...")
+        gdown.download(drive_url, model_file, fuzzy=True)
+        print("Download complete.")
