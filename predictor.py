@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import gdown
 
+import gdown
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -12,6 +12,16 @@ MODEL_PATH = "./model"
 
 # Label mapping  (adjust if your model uses different ids)
 ID2LABEL = {0: "Irrelevant", 1: "Relevant"}
+
+
+def download_model_if_missing(drive_url: str, model_path: str = "./model"):
+    """Download model.safetensors from Google Drive if not already present."""
+    model_file = os.path.join(model_path, "model.safetensors")
+    os.makedirs(model_path, exist_ok=True)
+    if not os.path.exists(model_file):
+        print("Downloading model from Google Drive...")
+        gdown.download(drive_url, model_file, fuzzy=True)
+        print("Download complete.")
 
 
 class Predictor:
@@ -93,13 +103,6 @@ class Predictor:
         """
         Predict relevancy for a single (video_title, comment) pair.
         Input text format: "<video_title> [SEP] <comment>"
-
-        Returns:
-            {
-                "label": "Relevant" | "Irrelevant",
-                "confidence": float (0-1),
-                "scores": {"Relevant": float, "Irrelevant": float}
-            }
         """
         if not self._loaded:
             raise RuntimeError("Model not loaded. Call .load() first.")
@@ -120,9 +123,7 @@ class Predictor:
             logits = outputs.logits
             probs = torch.softmax(logits, dim=-1).squeeze().cpu().tolist()
 
-        # Handle both 2-class output orders
         if len(probs) == 2:
-            # probs[0] = class 0, probs[1] = class 1
             label_0 = ID2LABEL.get(0, "Irrelevant")
             label_1 = ID2LABEL.get(1, "Relevant")
             scores = {label_0: probs[0], label_1: probs[1]}
@@ -130,7 +131,6 @@ class Predictor:
             predicted_label = ID2LABEL.get(pred_idx, "Unknown")
             confidence = probs[pred_idx]
         else:
-            # Fallback: single output (binary sigmoid)
             prob = probs if isinstance(probs, float) else probs[0]
             predicted_label = "Relevant" if prob >= 0.5 else "Irrelevant"
             confidence = prob if predicted_label == "Relevant" else 1 - prob
@@ -197,10 +197,3 @@ class Predictor:
                 progress_callback(min(i + batch_size, total), total)
 
         return results
-        
-    def download_model_if_missing(drive_url: str, model_path: str = "./model"):
-    model_file = os.path.join(model_path, "model.safetensors")
-    if not os.path.exists(model_file):
-        print("Downloading model from Google Drive...")
-        gdown.download(drive_url, model_file, fuzzy=True)
-        print("Download complete.")
