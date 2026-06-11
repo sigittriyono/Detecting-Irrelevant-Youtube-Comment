@@ -13,7 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from predictor import Predictor
+from predictor import Predictor, download_model_if_missing
 from utils import (
     extract_video_id,
     format_date,
