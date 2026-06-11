@@ -680,52 +680,26 @@ if st.session_state["analysis_done"] and st.session_state["results_df"] is not N
     if filtered_df.empty:
         st.info("No comments match your filter/search criteria.")
     else:
-        table_html = """
-        <table class="result-table">
-            <thead>
-                <tr>
-                    <th style="width:50px;">#</th>
-                    <th>Comment</th>
-                    <th style="width:120px;">Prediction</th>
-                    <th style="width:130px;">Confidence</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-        for _, row in filtered_df.iterrows():
-            pred = row["Prediction"]
-            conf = row["Confidence"]
-            badge_cls = "badge-relevant" if pred == "Relevant" else "badge-irrelevant"
-            dot = "🟢" if pred == "Relevant" else "🔴"
-            bar_color = "#22c55e" if pred == "Relevant" else "#ef4444"
-            bar_width = int(conf * 80)
-            uncertain_note = (
-                ' <span style="color:#f59e0b;font-size:0.7rem;" title="Low confidence">⚠</span>'
-                if row["Low_Confidence"]
-                else ""
-            )
-            comment_text = truncate_text(row["Comment"], 140)
-
-            table_html += f"""
-            <tr>
-                <td style="color:#94a3b8;font-size:0.78rem;">{row['No']}</td>
-                <td style="max-width:480px;">
-                    <div style="color:#1e293b;">{comment_text}</div>
-                    <div style="color:#94a3b8;font-size:0.72rem;margin-top:2px;">👤 {row['Author']} · 📅 {row['Published']}</div>
-                </td>
-                <td>{dot} <span class="{badge_cls}">{pred}</span>{uncertain_note}</td>
-                <td>
-                    <span style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;font-weight:500;">
-                        {conf*100:.1f}%
-                    </span>
-                    <span class="conf-bar-wrap">
-                        <span class="conf-bar" style="width:{bar_width}px;background:{bar_color};display:block;"></span>
-                    </span>
-                </td>
-            </tr>
-            """
-        table_html += "</tbody></table>"
-        st.markdown(table_html, unsafe_allow_html=True)
+        display_df = filtered_df[["No", "Comment", "Prediction", "Confidence_pct"]].copy()
+        display_df.columns = ["No", "Comment", "Prediction", "Confidence"]
+    
+        def highlight_row(row):
+            color = "#dcfce7" if row["Prediction"] == "Relevant" else "#fee2e2"
+            return [f"background-color: {color}"] * len(row)
+    
+        styled = display_df.style.apply(highlight_row, axis=1)
+    
+        st.dataframe(
+            styled,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "No": st.column_config.NumberColumn(width="small"),
+                "Comment": st.column_config.TextColumn(width="large"),
+                "Prediction": st.column_config.TextColumn(width="medium"),
+                "Confidence": st.column_config.TextColumn(width="small"),
+            }
+        )
 
     # ── Moderation summary ────────────────────────────────────────────────────
     st.markdown('<div class="section-heading">📋 Comment Moderation Summary</div>', unsafe_allow_html=True)
