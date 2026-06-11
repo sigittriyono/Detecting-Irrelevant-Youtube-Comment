@@ -20,9 +20,14 @@ def download_model_if_missing(drive_url: str, model_path: str = "./model"):
     os.makedirs(model_path, exist_ok=True)
     if not os.path.exists(model_file):
         print("Downloading model from Google Drive...")
-        gdown.download(drive_url, model_file, fuzzy=True)
+        # Ekstrak file ID dari URL Google Drive
+        import re
+        match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", drive_url)
+        if not match:
+            raise ValueError("URL Google Drive tidak valid.")
+        file_id = match.group(1)
+        gdown.download(id=file_id, output=model_file, quiet=False)
         print("Download complete.")
-
 
 class Predictor:
     """Loads the fine-tuned IndoBERT-Relevancy model and runs inference."""
