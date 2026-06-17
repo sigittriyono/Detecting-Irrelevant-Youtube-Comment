@@ -112,7 +112,7 @@ class Predictor:
         if not self._loaded:
             raise RuntimeError("Model not loaded. Call .load() first.")
 
-        text = f"{video_title} [SEP] {comment}"
+        text = f"judul: {video_title} [SEP] komentar: {comment}"
 
         inputs = self.tokenizer(
             text,
@@ -166,7 +166,7 @@ class Predictor:
 
         for i in range(0, total, batch_size):
             batch_comments = comments[i : i + batch_size]
-            texts = [f"{video_title} [SEP] {c}" for c in batch_comments]
+            texts = [f"judul: {video_title} [SEP] komentar: {c}" for c in batch_comments]
 
             inputs = self.tokenizer(
                 texts,
