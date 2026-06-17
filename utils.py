@@ -74,3 +74,48 @@ def get_moderation_status(irrelevant_ratio: float) -> dict:
             "color": "#ef4444",
             "bg": "#fef2f2",
         }
+
+
+def get_health_score(irrelevant_ratio: float) -> dict:
+    """
+    Translate irrelevant comment ratio into a 0-100 'Video Health Score'
+    for the moderation dashboard. Reuses the same thresholds as
+    get_moderation_status() so both stay consistent.
+
+    Score = 100 - (irrelevant_ratio * 100), bounded to [0, 100].
+    """
+    score = max(0, min(100, round(100 - (irrelevant_ratio * 100))))
+    mod = get_moderation_status(irrelevant_ratio)
+
+    if irrelevant_ratio < 0.10:
+        tier = "Healthy"
+        tier_emoji = "🟢"
+        tier_msg = "Discussion quality is strong. No action needed."
+    elif irrelevant_ratio < 0.30:
+        tier = "Moderate"
+        tier_emoji = "🟡"
+        tier_msg = "Some off-topic comments present. Light moderation advised."
+    else:
+        tier = "Risk"
+        tier_emoji = "🔴"
+        tier_msg = "High volume of irrelevant comments. Moderation recommended."
+
+    return {
+        "score": score,
+        "tier": tier,
+        "tier_emoji": tier_emoji,
+        "tier_msg": tier_msg,
+        "color": mod["color"],
+        "bg": mod["bg"],
+        "status": mod["status"],
+        "recommendation": mod["recommendation"],
+        "emoji": mod["emoji"],
+    }
+
+
+def get_youtube_thumbnail(video_id: str, quality: str = "hqdefault") -> str:
+    """
+    Build a YouTube thumbnail URL from a video ID.
+    quality options: default, mqdefault, hqdefault, sddefault, maxresdefault
+    """
+    return f"https://i.ytimg.com/vi/{video_id}/{quality}.jpg"
