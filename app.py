@@ -266,7 +266,7 @@ if "analysis_done" not in st.session_state:
 # ─────────────────────────────────────────────────────────────────────────────
 # MODEL LOADING (cached)
 # ─────────────────────────────────────────────────────────────────────────────
-DRIVE_URL = "https://drive.google.com/file/d/17qQx7SaA7P9fZitZQtqtMbROPwuFK_ee/view?usp=sharing"
+DRIVE_URL = "https://drive.google.com/file/d/1at-RgOpN7LgBgwWPNOvkCqP7dIy19_CF/view?usp=sharing"
 download_model_if_missing(DRIVE_URL)
 
 @st.cache_resource(show_spinner=False)
