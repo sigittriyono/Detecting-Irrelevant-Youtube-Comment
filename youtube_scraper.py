@@ -78,7 +78,7 @@ class YouTubeScraper:
                     part="snippet",
                     videoId=video_id,
                     maxResults=fetch_count,
-                    order="relevance",
+                    order="time",
                     pageToken=next_page_token,
                 )
                 response = request.execute()
