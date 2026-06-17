@@ -88,7 +88,7 @@ class YouTubeScraper:
                     comments.append(
                         {
                             "comment_id": item["id"],
-                            "text": top.get("textDisplay", ""),
+                            "text": top.get("textOriginal", ""),
                             "author": top.get("authorDisplayName", "Anonymous"),
                             "like_count": top.get("likeCount", 0),
                             "published_at": top.get("publishedAt", ""),
