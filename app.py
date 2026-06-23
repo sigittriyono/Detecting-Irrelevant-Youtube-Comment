@@ -1,6 +1,6 @@
 """
-YouTube Comment Moderation Dashboard
-Detecting Irrelevant Comments in Indonesian Social Media Using IndoBERT-Relevancy
+RelevancyTube
+Context-Aware YouTube Comment Relevance Detection System
 
 """
 
@@ -10,6 +10,7 @@ import io
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from predictor import Predictor, download_model_if_missing
@@ -29,271 +30,123 @@ from youtube_scraper import YouTubeScraper
 # ─────────────────────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="YouTube Comment Moderation Dashboard",
-    page_icon="🛡️",
+    page_title="RelevancyTube · Context-Aware YouTube Comment Relevance Detection System",
+    page_icon="▶",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CUSTOM CSS
+# CSS  (YouTube palette: #FF0000 red · #0F0F0F dark · #FFFFFF white · #F2F2F2 light)
 # ─────────────────────────────────────────────────────────────────────────────
 
-st.markdown(
-    """
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+html, body, [class*="css"] { font-family: 'Roboto', sans-serif; }
 
-    .main .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 3rem;
-        max-width: 1280px;
-    }
+.main .block-container { padding-top:1.4rem; padding-bottom:3rem; max-width:1300px; }
 
-    /* ── Header ── */
-    .app-header {
-        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
-        border-radius: 18px;
-        padding: 1.9rem 2.4rem;
-        margin-bottom: 1.6rem;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    .app-header-left { display: flex; align-items: center; gap: 1rem; }
-    .app-header-icon {
-        font-size: 2.2rem;
-        background: rgba(255,255,255,0.15);
-        border-radius: 14px;
-        width: 56px; height: 56px;
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0;
-    }
-    .app-header h1 {
-        font-size: 1.5rem; font-weight: 700; margin: 0;
-        letter-spacing: -0.02em; color: white !important;
-    }
-    .app-header p {
-        font-size: 0.88rem; opacity: 0.88; margin: 0.15rem 0 0 0;
-        color: white !important;
-    }
-    .app-header-badge {
-        background: rgba(255,255,255,0.15);
-        border-radius: 20px;
-        padding: 0.4rem 1rem;
-        font-size: 0.78rem;
-        font-weight: 500;
-        color: white;
-        white-space: nowrap;
-    }
+/* ── Header ── */
+.cg-header {
+    background: #0F0F0F;
+    border-radius: 16px;
+    padding: 1.6rem 2rem;
+    margin-bottom: 1.4rem;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+}
+.cg-header-left { display: flex; align-items: center; gap: 1rem; }
+.cg-logo {
+    background: #FF0000; border-radius: 12px; width: 52px; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; flex-shrink: 0;
+}
+.cg-header h1 { font-size: 1.45rem; font-weight: 700; margin: 0; color: #FFFFFF !important; letter-spacing: -.01em; }
+.cg-header p  { font-size: 0.82rem; margin: 0.2rem 0 0 0; color: #AAAAAA !important; }
+.cg-pill {
+    background: #FF0000; color: white; border-radius: 20px;
+    padding: 0.35rem 1rem; font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+}
 
-    /* ── Generic card ── */
-    .card {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 1.4rem 1.6rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
+/* ── Section heading ── */
+.cg-section {
+    font-size: 0.92rem; font-weight: 700; color: #0F0F0F;
+    margin: 1.6rem 0 0.8rem 0; padding-bottom: 0.5rem;
+    border-bottom: 2px solid #FF0000; display: flex; align-items: center; gap: 0.5rem;
+}
 
-    /* ── Section heading ── */
-    .section-heading {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 1.8rem 0 0.9rem 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .section-heading .line {
-        flex: 1;
-        height: 1px;
-        background: #e2e8f0;
-    }
+/* ── Video card ── */
+.cg-video-card {
+    background: #FFFFFF; border: 1px solid #E5E5E5; border-radius: 14px;
+    display: flex; gap: 1.2rem; padding: 1.1rem; align-items: flex-start;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.cg-thumb { width: 200px; min-width: 200px; border-radius: 10px; object-fit: cover; background: #F2F2F2; }
+.cg-video-title { font-size: 1.05rem; font-weight: 700; color: #0F0F0F; margin: 0 0 0.55rem 0; line-height: 1.35; }
+.cg-video-meta { display: flex; flex-wrap: wrap; gap: 0.7rem 1.4rem; font-size: 0.82rem; color: #606060; margin-top: 0.4rem; }
+.cg-video-meta span { display: flex; align-items: center; gap: 0.3rem; }
 
-    /* ── Video info card ── */
-    .video-card {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 1.2rem;
-        display: flex;
-        gap: 1.3rem;
-        align-items: stretch;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .video-thumb {
-        width: 200px;
-        min-width: 200px;
-        border-radius: 10px;
-        object-fit: cover;
-        background: #f1f5f9;
-    }
-    .video-meta-title {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0 0 0.5rem 0;
-        line-height: 1.35;
-    }
-    .video-meta-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.9rem 1.4rem;
-        font-size: 0.83rem;
-        color: #64748b;
-        margin-top: 0.6rem;
-    }
-    .video-meta-row span { display: flex; align-items: center; gap: 0.35rem; }
-    .video-meta-row b { color: #334155; font-weight: 600; }
+/* ── Health score ── */
+.cg-health {
+    border-radius: 14px; padding: 1.5rem 1.8rem;
+    display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+}
+.cg-score-ring {
+    width: 110px; height: 110px; border-radius: 50%; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: white;
+}
+.cg-score-num { font-size: 2rem; font-weight: 800; line-height: 1; }
+.cg-score-den { font-size: 0.68rem; color: #909090; font-weight: 600; }
+.cg-health-info h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.2rem 0; color: #0F0F0F; }
+.cg-health-info p  { font-size: 0.83rem; color: #606060; margin: 0; }
+.cg-health-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-left: auto; }
+.cg-hstat .val { font-size: 1.35rem; font-weight: 700; color: #0F0F0F; }
+.cg-hstat .lbl { font-size: 0.67rem; color: #909090; text-transform: uppercase; letter-spacing: .04em; }
 
-    /* ── Health score card ── */
-    .health-card {
-        border-radius: 16px;
-        padding: 1.8rem 2rem;
-        display: flex;
-        align-items: center;
-        gap: 2.2rem;
-        flex-wrap: wrap;
-    }
-    .health-score-circle {
-        width: 120px; height: 120px;
-        border-radius: 50%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        background: white;
-        box-shadow: inset 0 0 0 8px rgba(0,0,0,0.04);
-    }
-    .health-score-num { font-size: 2.1rem; font-weight: 800; line-height: 1; }
-    .health-score-den { font-size: 0.72rem; color: #94a3b8; font-weight: 600; margin-top: 2px; }
-    .health-info h3 {
-        font-size: 1.15rem; font-weight: 700; margin: 0 0 0.25rem 0; color: #1e293b;
-    }
-    .health-info p { font-size: 0.85rem; color: #64748b; margin: 0; max-width: 480px; }
-    .health-stats {
-        display: flex;
-        gap: 1.8rem;
-        margin-left: auto;
-        flex-wrap: wrap;
-    }
-    .health-stat { text-align: center; }
-    .health-stat .val { font-size: 1.3rem; font-weight: 700; color: #1e293b; }
-    .health-stat .lbl { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+/* ── Status banner ── */
+.cg-banner {
+    border-radius: 12px; padding: 1rem 1.4rem;
+    display: flex; align-items: flex-start; gap: 0.9rem;
+}
+.cg-banner h4 { margin: 0 0 0.2rem 0; font-size: 0.95rem; font-weight: 700; }
+.cg-banner p  { margin: 0; font-size: 0.83rem; }
 
-    /* ── Status banner ── */
-    .status-banner {
-        border-radius: 14px;
-        padding: 1.1rem 1.5rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    .status-banner .icon { font-size: 1.6rem; line-height: 1; margin-top: 1px; }
-    .status-banner h4 { margin: 0 0 0.25rem 0; font-size: 0.98rem; font-weight: 700; }
-    .status-banner p { margin: 0; font-size: 0.85rem; opacity: 0.9; }
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] { background: #F9F9F9; border-right: 1px solid #E5E5E5; }
+.cg-sb-logo { text-align: center; padding: 0.3rem 0 0.9rem 0; border-bottom: 1px solid #E5E5E5; margin-bottom: 0.9rem; }
+.cg-sb-logo h2 { font-size: 1rem; font-weight: 700; color: #FF0000; margin: 0.3rem 0 0.05rem 0; }
+.cg-sb-logo p  { font-size: 0.68rem; color: #909090; margin: 0; }
+.cg-badge { display: inline-block; border-radius: 20px; padding: .12rem .55rem; font-size: .72rem; font-weight: 600; }
+.cg-ok   { background:#dcfce7; color:#15803d; }
+.cg-err  { background:#fee2e2; color:#b91c1c; }
+.cg-warn { background:#fef9c3; color:#a16207; }
 
-    /* ── Metric mini cards ── */
-    .metric-card {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 1.1rem 1.3rem;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    .metric-card .metric-value { font-size: 1.7rem; font-weight: 700; line-height: 1.1; color: #1e40af; }
-    .metric-card .metric-label {
-        font-size: 0.72rem; font-weight: 600; color: #64748b;
-        text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.3rem;
-    }
-    .metric-card.relevant .metric-value { color: #16a34a; }
-    .metric-card.irrelevant .metric-value { color: #dc2626; }
+/* ── Report card ── */
+.cg-report {
+    border-radius: 14px; padding: 1.5rem 1.8rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.9;
+}
 
-    /* ── Flagged / relevant comment list ── */
-    .comment-item {
-        border-radius: 10px;
-        padding: 0.85rem 1.1rem;
-        margin-bottom: 0.55rem;
-        border-left: 4px solid transparent;
-    }
-    .comment-item.flagged { background: #fef2f2; border-left-color: #ef4444; }
-    .comment-item.relevant { background: #f0fdf4; border-left-color: #22c55e; }
-    .comment-item-text { font-size: 0.87rem; color: #1e293b; line-height: 1.45; }
-    .comment-item-meta {
-        font-size: 0.72rem; color: #94a3b8; margin-top: 0.35rem;
-        display: flex; gap: 0.9rem; align-items: center;
-    }
-    .conf-chip {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        font-weight: 600;
-        padding: 0.1rem 0.5rem;
-        border-radius: 8px;
-    }
-    .conf-chip.high-irr { background: #fee2e2; color: #b91c1c; }
-    .conf-chip.high-rel { background: #dcfce7; color: #15803d; }
-
-    /* ── Badges ── */
-    .badge-relevant {
-        display: inline-block; background: #dcfce7; color: #15803d;
-        border-radius: 20px; padding: 0.15rem 0.7rem; font-weight: 600; font-size: 0.76rem;
-    }
-    .badge-irrelevant {
-        display: inline-block; background: #fee2e2; color: #b91c1c;
-        border-radius: 20px; padding: 0.15rem 0.7rem; font-weight: 600; font-size: 0.76rem;
-    }
-
-    /* ── Sidebar ── */
-    section[data-testid="stSidebar"] { background: #f5f8ff; border-right: 1px solid #dbeafe; }
-    .sidebar-logo { text-align: center; padding: 0.4rem 0 1rem 0; border-bottom: 1px solid #dbeafe; margin-bottom: 1rem; }
-    .sidebar-logo h2 { font-size: 1.02rem; font-weight: 700; color: #1e40af; margin: 0.3rem 0 0.1rem 0; }
-    .sidebar-logo p { font-size: 0.7rem; color: #64748b; margin: 0; }
-    .status-badge {
-        display: inline-block; border-radius: 20px; padding: 0.15rem 0.6rem;
-        font-size: 0.74rem; font-weight: 600;
-    }
-    .status-ok { background:#dcfce7; color:#15803d; }
-    .status-err { background:#fee2e2; color:#b91c1c; }
-    .status-warn { background:#fef9c3; color:#a16207; }
-
-    /* ── Moderation report card ── */
-    .report-card {
-        border-radius: 14px;
-        padding: 1.6rem 2rem;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.83rem;
-        line-height: 1.85;
-    }
-
-    #MainMenu {visibility:hidden;}
-    footer {visibility:hidden;}
-    header {visibility:hidden;}
+#MainMenu{visibility:hidden;} footer{visibility:hidden;} header{visibility:hidden;}
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SESSION STATE
 # ─────────────────────────────────────────────────────────────────────────────
 
-for key in ["results_df", "video_meta", "video_id"]:
-    if key not in st.session_state:
-        st.session_state[key] = None
-if "analysis_done" not in st.session_state:
+for _k in ["results_df", "video_meta", "video_id", "analysis_done", "explorer_page"]:
+    if _k not in st.session_state:
+        st.session_state[_k] = None
+if st.session_state["analysis_done"] is None:
     st.session_state["analysis_done"] = False
+if st.session_state["explorer_page"] is None:
+    st.session_state["explorer_page"] = 1
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MODEL LOADING (cached) — pipeline untouched
+# MODEL LOADING — pipeline untouched
 # ─────────────────────────────────────────────────────────────────────────────
 
 DRIVE_URL = "https://drive.google.com/file/d/1at-RgOpN7LgBgwWPNOvkCqP7dIy19_CF/view?usp=sharing"
@@ -302,142 +155,117 @@ download_model_if_missing(DRIVE_URL)
 
 @st.cache_resource(show_spinner=False)
 def load_predictor() -> Predictor:
-    predictor = Predictor()
-    predictor.load()
-    return predictor
+    p = Predictor()
+    p.load()
+    return p
 
 
 predictor = load_predictor()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR (simplified)
+# SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown(
-        """
-        <div class="sidebar-logo">
-            <div style="font-size:2.3rem;">🛡️</div>
-            <h2>Comment Moderation</h2>
-            <p>Powered by IndoBERT-Relevancy</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("##### System Status")
+    st.markdown("""
+    <div class="cg-sb-logo">
+        <div style="font-size:2rem;">🛡️</div>
+        <h2>CommentGuard</h2>
+        <p>YouTube Comment Relevance Analyzer</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     model_badge = (
-        '<span class="status-badge status-ok">● Model Ready</span>'
+        '<span class="cg-badge cg-ok">● Model Ready</span>'
         if predictor.is_loaded
-        else '<span class="status-badge status-err">● Model Error</span>'
+        else '<span class="cg-badge cg-err">● Model Error</span>'
     )
+    st.markdown("**System Status**")
     st.markdown(model_badge, unsafe_allow_html=True)
-
     if not predictor.is_loaded and predictor.error:
         st.error(predictor.error)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("##### ⚙️ Analysis Settings")
+    st.divider()
+    st.markdown("**⚙️ Settings**")
 
     max_comments = st.selectbox(
-        "Number of comments to fetch",
-        options=[50, 100, 200, 500],
+        "Comments to fetch",
+        [50, 100, 200, 500],
         index=1,
         help="More comments = longer analysis time",
     )
-
     confidence_threshold = st.slider(
         "Confidence threshold",
-        min_value=0.50,
-        max_value=0.99,
-        value=0.70,
-        step=0.01,
-        help="Predictions below this threshold will be flagged as uncertain",
+        min_value=0.50, max_value=0.99, value=0.70, step=0.01,
+        help="Predictions below this are flagged as uncertain",
     )
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("##### 🔑 YouTube API")
+    st.divider()
+    st.markdown("**🔑 YouTube API**")
     api_key = st.text_input(
-        "YouTube Data API v3 Key",
-        type="password",
-        placeholder="AIza...",
+        "API Key", type="password", placeholder="AIza…",
         label_visibility="collapsed",
-        help="Get your key at console.cloud.google.com",
     )
-
     if api_key:
-        st.markdown('<span class="status-badge status-ok">● API Key Set</span>', unsafe_allow_html=True)
+        st.markdown('<span class="cg-badge cg-ok">● API Key Set</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="status-badge status-warn">● API Key Required</span>', unsafe_allow_html=True)
+        st.markdown('<span class="cg-badge cg-warn">● API Key Required</span>', unsafe_allow_html=True)
 
-    with st.expander("ℹ️ Technical details"):
-        st.markdown(
-            """
-            **Model:** IndoBERT-Relevancy
-            **Base:** apriandito/indobert-relevancy-classifier
-            **Task:** Binary text-pair classification
-            **Research:** UPN Veteran Jawa Timur
-            """
-        )
+    with st.expander("ℹ️ About"):
+        st.markdown("""
+**CommentGuard** detects irrelevant comments in Indonesian YouTube discussions using a fine-tuned IndoBERT binary classifier.
+
+**Research:** UPN Veteran Jawa Timur
+**Model:** IndoBERT-Relevancy
+**Task:** Relevant / Irrelevant classification
+        """)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HEADER
 # ─────────────────────────────────────────────────────────────────────────────
 
-st.markdown(
-    """
-    <div class="app-header">
-        <div class="app-header-left">
-            <div class="app-header-icon">🛡️</div>
-            <div>
-                <h1>YouTube Comment Moderation Dashboard</h1>
-                <p>Analyze comment relevance using IndoBERT-Relevancy</p>
-            </div>
+st.markdown("""
+<div class="cg-header">
+    <div class="cg-header-left">
+        <div class="cg-logo">🛡️</div>
+        <div>
+            <h1>CommentGuard</h1>
+            <p>YouTube Comment Relevance Analyzer · Powered by IndoBERT-Relevancy</p>
         </div>
-        <div class="app-header-badge">🤖 AI-Powered Relevance Detection</div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+    <div class="cg-pill">🎓 Penelitian UPN Veteran Jawa Timur</div>
+</div>
+""", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# INPUT SECTION
+# INPUT
 # ─────────────────────────────────────────────────────────────────────────────
 
-with st.container():
-    col_url, col_btn = st.columns([5, 1], vertical_alignment="bottom")
+col_url, col_btn = st.columns([5, 1], vertical_alignment="bottom")
+with col_url:
+    youtube_url = st.text_input(
+        "YouTube URL",
+        placeholder="Paste a YouTube video link to analyze its comments…",
+        label_visibility="collapsed",
+    )
+with col_btn:
+    analyze_btn = st.button(
+        "▶ Analyze", type="primary",
+        use_container_width=True,
+        disabled=not predictor.is_loaded,
+    )
 
-    with col_url:
-        youtube_url = st.text_input(
-            "YouTube Video URL",
-            placeholder="Paste a YouTube video link to analyze its comments…",
-        )
-
-    with col_btn:
-        analyze_btn = st.button(
-            "🔍 Analyze",
-            type="primary",
-            use_container_width=True,
-            disabled=not predictor.is_loaded,
-        )
-
-    if not predictor.is_loaded:
-        st.warning(
-            "⚠️ Model not loaded. Please ensure all model files are present "
-            "in the `model/` directory before running analysis.",
-            icon="⚠️",
-        )
+if not predictor.is_loaded:
+    st.warning("⚠️ Model not loaded. Check the `model/` directory.", icon="⚠️")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ANALYSIS PIPELINE — pipeline logic untouched, only wrapped in same structure
+# ANALYSIS PIPELINE  — logic identical to original
 # ─────────────────────────────────────────────────────────────────────────────
 
 if analyze_btn:
     if not api_key:
         st.error("❌ Please enter your YouTube Data API v3 key in the sidebar.")
         st.stop()
-
     if not youtube_url.strip():
         st.error("❌ Please enter a YouTube video URL.")
         st.stop()
@@ -445,26 +273,26 @@ if analyze_btn:
     video_id = extract_video_id(youtube_url.strip())
     if not video_id:
         st.error(
-            "❌ Invalid YouTube URL. Supported formats:\n"
-            "- `https://www.youtube.com/watch?v=VIDEO_ID`\n"
-            "- `https://youtu.be/VIDEO_ID`\n"
-            "- `https://www.youtube.com/shorts/VIDEO_ID`"
+            "❌ Invalid YouTube URL. Supported:\n"
+            "- `https://www.youtube.com/watch?v=ID`\n"
+            "- `https://youtu.be/ID`\n"
+            "- `https://www.youtube.com/shorts/ID`"
         )
         st.stop()
 
     scraper = YouTubeScraper(api_key)
 
-    with st.status("Fetching video metadata…", expanded=True) as status:
+    with st.status("Fetching video metadata…", expanded=True) as _status:
         try:
             meta = scraper.get_video_metadata(video_id)
             st.write(f"✅ Video found: **{meta['title']}**")
         except ValueError as e:
-            status.update(label="Failed", state="error")
+            _status.update(label="Failed", state="error")
             st.error(f"❌ {e}")
             st.stop()
 
         if meta.get("comments_disabled"):
-            status.update(label="Failed", state="error")
+            _status.update(label="Failed", state="error")
             st.error("❌ Comments are disabled for this video.")
             st.stop()
 
@@ -473,58 +301,55 @@ if analyze_btn:
             raw_comments = scraper.get_comments(video_id, max_comments)
             st.write(f"✅ Retrieved **{len(raw_comments)}** comments.")
         except ValueError as e:
-            status.update(label="Failed", state="error")
+            _status.update(label="Failed", state="error")
             st.error(f"❌ {e}")
             st.stop()
 
         if not raw_comments:
-            status.update(label="Failed", state="error")
+            _status.update(label="Failed", state="error")
             st.error("❌ No comments found for this video.")
             st.stop()
 
         st.write("Running IndoBERT-Relevancy classifier…")
-        progress_bar = st.progress(0)
+        pb = st.progress(0)
         comment_texts = [c["text"] for c in raw_comments]
-        total = len(comment_texts)
 
-        def update_progress(current, total):
-            progress_bar.progress(current / total)
+        def _upd(cur, tot): pb.progress(cur / tot)
 
         try:
             predictions = predictor.predict_batch(
                 meta["title"], comment_texts, batch_size=16,
-                progress_callback=update_progress,
+                progress_callback=_upd,
             )
         except Exception as e:
-            status.update(label="Failed", state="error")
+            _status.update(label="Failed", state="error")
             st.error(f"❌ Model inference failed: {e}")
             st.stop()
 
-        progress_bar.progress(1.0)
+        pb.progress(1.0)
         st.write("✅ Classification complete.")
-        status.update(label="Analysis complete!", state="complete", expanded=False)
+        _status.update(label="Analysis complete!", state="complete", expanded=False)
 
     rows = []
-    for i, (comment, pred) in enumerate(zip(raw_comments, predictions), 1):
-        rows.append(
-            {
-                "No": i,
-                "Comment": comment["text"],
-                "Author": comment["author"],
-                "Prediction": pred["label"],
-                "Confidence": pred["confidence"],
-                "Confidence_pct": f"{pred['confidence']*100:.1f}%",
-                "Likes": comment["like_count"],
-                "Published": format_date(comment["published_at"]),
-                "Low_Confidence": pred["confidence"] < confidence_threshold,
-            }
-        )
+    for i, (c, p) in enumerate(zip(raw_comments, predictions), 1):
+        rows.append({
+            "No": i,
+            "Comment": c["text"],
+            "Author": c["author"],
+            "Prediction": p["label"],
+            "Confidence": p["confidence"],
+            "Confidence_pct": f"{p['confidence']*100:.1f}%",
+            "Likes": c["like_count"],
+            "Published": format_date(c["published_at"]),
+            "Low_Confidence": p["confidence"] < confidence_threshold,
+        })
 
     df = pd.DataFrame(rows)
     st.session_state["results_df"] = df
     st.session_state["video_meta"] = meta
     st.session_state["video_id"] = video_id
     st.session_state["analysis_done"] = True
+    st.session_state["explorer_page"] = 1
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DASHBOARD
@@ -532,419 +357,336 @@ if analyze_btn:
 
 if st.session_state["analysis_done"] and st.session_state["results_df"] is not None:
     df: pd.DataFrame = st.session_state["results_df"]
-    meta: dict = st.session_state["video_meta"]
-    vid: str = st.session_state["video_id"]
+    meta: dict       = st.session_state["video_meta"]
+    vid: str         = st.session_state["video_id"]
 
-    n_total = len(df)
-    n_relevant = int((df["Prediction"] == "Relevant").sum())
-    n_irrelevant = int((df["Prediction"] == "Irrelevant").sum())
-    pct_rel = n_relevant / n_total if n_total else 0
-    pct_irr = n_irrelevant / n_total if n_total else 0
+    n_total     = len(df)
+    n_relevant  = int((df["Prediction"] == "Relevant").sum())
+    n_irrelevant= int((df["Prediction"] == "Irrelevant").sum())
+    pct_rel     = n_relevant  / n_total if n_total else 0
+    pct_irr     = n_irrelevant/ n_total if n_total else 0
+    avg_conf    = float(df["Confidence"].mean())
+    low_conf    = int(df["Low_Confidence"].sum())
 
     health = get_health_score(pct_irr)
-    mod = get_moderation_status(pct_irr)
+    mod    = get_moderation_status(pct_irr)
 
-    # ── 1. Video information card ─────────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">📹 Video Information<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
+    # ── 1. Video Card ─────────────────────────────────────────────────────
+    st.markdown('<div class="cg-section">📹 Video Information</div>', unsafe_allow_html=True)
 
-    thumb_url = get_youtube_thumbnail(vid)
-    st.markdown(
-        f"""
-        <div class="video-card">
-            <img class="video-thumb" src="{thumb_url}" />
-            <div>
-                <div class="video-meta-title">{meta['title']}</div>
-                <div class="video-meta-row">
-                    <span>📺 <b>{meta['channel_name']}</b></span>
-                    <span>📅 {format_date(meta['published_at'])}</span>
-                </div>
-                <div class="video-meta-row">
-                    <span>👀 <b>{format_number(meta['view_count'])}</b> views</span>
-                    <span>👍 <b>{format_number(meta['like_count'])}</b> likes</span>
-                    <span>💬 <b>{format_number(meta['comment_count'])}</b> total comments</span>
-                </div>
-            </div>
+    thumb = get_youtube_thumbnail(vid)
+    left, right = st.columns([1, 3])
+    with left:
+        st.image(thumb, use_container_width=True)
+    with right:
+        st.markdown(f"### {meta['title']}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("📺 Channel",  meta["channel_name"])
+        c2.metric("📅 Published", format_date(meta["published_at"]))
+        c3.metric("💬 Comments",  format_number(meta["comment_count"]))
+        c4, c5, _ = st.columns(3)
+        c4.metric("👀 Views", format_number(meta["view_count"]))
+        c5.metric("👍 Likes", format_number(meta["like_count"]))
+
+    st.divider()
+
+    # ── 2. Health Score ───────────────────────────────────────────────────
+    st.markdown('<div class="cg-section">🩺 Video Health Score</div>', unsafe_allow_html=True)
+
+    # Score ring via HTML (safe — no user content injected)
+    st.markdown(f"""
+    <div class="cg-health" style="background:{health['bg']};border:1px solid {health['color']}30;">
+        <div class="cg-score-ring" style="box-shadow:inset 0 0 0 9px {health['color']}25;">
+            <div class="cg-score-num" style="color:{health['color']};">{health['score']}</div>
+            <div class="cg-score-den">/ 100</div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ── 2. Video Health Score ───────────────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">🩺 Video Health Score<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        f"""
-        <div class="health-card" style="background:{health['bg']};border:1px solid {health['color']}33;">
-            <div class="health-score-circle" style="box-shadow: inset 0 0 0 8px {health['color']}26;">
-                <div class="health-score-num" style="color:{health['color']};">{health['score']}</div>
-                <div class="health-score-den">/ 100</div>
-            </div>
-            <div class="health-info">
-                <h3>{health['tier_emoji']} {health['tier']}</h3>
-                <p>{health['tier_msg']}</p>
-            </div>
-            <div class="health-stats">
-                <div class="health-stat">
-                    <div class="val">{n_total}</div>
-                    <div class="lbl">Total</div>
-                </div>
-                <div class="health-stat">
-                    <div class="val" style="color:#16a34a;">{n_relevant}</div>
-                    <div class="lbl">Relevant</div>
-                </div>
-                <div class="health-stat">
-                    <div class="val" style="color:#dc2626;">{n_irrelevant}</div>
-                    <div class="lbl">Irrelevant</div>
-                </div>
-                <div class="health-stat">
-                    <div class="val">{pct_rel*100:.0f}%</div>
-                    <div class="lbl">Relevant Rate</div>
-                </div>
-                <div class="health-stat">
-                    <div class="val">{pct_irr*100:.0f}%</div>
-                    <div class="lbl">Irrelevant Rate</div>
-                </div>
-            </div>
+        <div class="cg-health-info">
+            <h3>{health['tier_emoji']} {health['tier']}</h3>
+            <p>{health['tier_msg']}</p>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ── 3. Moderation status banner ───────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">🚦 Moderation Status<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
-
-    status_label = {"Low": "SAFE", "Moderate": "MODERATE", "High": "WARNING"}[mod["label"]]
-    st.markdown(
-        f"""
-        <div class="status-banner" style="background:{mod['bg']};border:1px solid {mod['color']}33;">
-            <div class="icon">{mod['emoji']}</div>
-            <div>
-                <h4 style="color:{mod['color']};">{status_label}</h4>
-                <p style="color:#475569;">{mod['status']} <strong>Recommendation:</strong> {mod['recommendation']}</p>
-            </div>
+        <div class="cg-health-stats">
+            <div class="cg-hstat"><div class="val">{n_total}</div><div class="lbl">Total</div></div>
+            <div class="cg-hstat"><div class="val" style="color:#16a34a;">{n_relevant}</div><div class="lbl">Relevant</div></div>
+            <div class="cg-hstat"><div class="val" style="color:#FF0000;">{n_irrelevant}</div><div class="lbl">Irrelevant</div></div>
+            <div class="cg-hstat"><div class="val">{pct_rel*100:.0f}%</div><div class="lbl">Rel Rate</div></div>
+            <div class="cg-hstat"><div class="val">{pct_irr*100:.0f}%</div><div class="lbl">Irr Rate</div></div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ── 4 & 5. Flagged + Relevant comments ──────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">🚩 Flagged & Relevant Comments<div class="line"></div></div>',
-        unsafe_allow_html=True,
+    st.divider()
+
+    # ── 3. Moderation Status ──────────────────────────────────────────────
+    st.markdown('<div class="cg-section">🚦 Moderation Status</div>', unsafe_allow_html=True)
+
+    status_label = {"Low": "✅ SAFE", "Moderate": "⚠️ MODERATE", "High": "🚨 WARNING"}[mod["label"]]
+    st.markdown(f"""
+    <div class="cg-banner" style="background:{mod['bg']};border:1px solid {mod['color']}30;">
+        <div>
+            <h4 style="color:{mod['color']};">{status_label}</h4>
+            <p style="color:#444;">{mod['status']} &nbsp;·&nbsp; <em>{mod['recommendation']}</em></p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── 4&5. Flagged + Relevant (native Streamlit — no raw HTML loops) ────
+    st.markdown('<div class="cg-section">🚩 Flagged & Relevant Comments</div>', unsafe_allow_html=True)
+
+    flagged_df = (
+        df[df["Prediction"] == "Irrelevant"]
+        .sort_values("Confidence", ascending=False)
+        .head(20)
+        .reset_index(drop=True)
+    )
+    relevant_df = (
+        df[df["Prediction"] == "Relevant"]
+        .sort_values("Confidence", ascending=False)
+        .head(20)
+        .reset_index(drop=True)
     )
 
     flag_col, rel_col = st.columns(2)
 
     with flag_col:
         st.markdown("**🔴 Top Flagged (Irrelevant)**")
-        flagged = (
-            df[df["Prediction"] == "Irrelevant"]
-            .sort_values("Confidence", ascending=False)
-            .head(20)
-        )
-        if flagged.empty:
-            st.info("No irrelevant comments detected.")
+        if flagged_df.empty:
+            st.success("No irrelevant comments detected.")
         else:
-            items_html = ""
-            for _, row in flagged.iterrows():
-                items_html += f"""
-                <div class="comment-item flagged">
-                    <div class="comment-item-text">{truncate_text(row['Comment'], 140)}</div>
-                    <div class="comment-item-meta">
-                        <span>👤 {row['Author']}</span>
-                        <span class="conf-chip high-irr">{row['Confidence']*100:.1f}% confidence</span>
-                    </div>
-                </div>
-                """
-            st.markdown(
-                f'<div style="max-height:480px;overflow-y:auto;padding-right:4px;">{items_html}</div>',
-                unsafe_allow_html=True,
-            )
+            for _, row in flagged_df.iterrows():
+                with st.container(border=True):
+                    st.markdown(
+                        f"<span style='font-size:.87rem;color:#0F0F0F;'>{truncate_text(row['Comment'], 150)}</span>",
+                        unsafe_allow_html=True,
+                    )
+                    badge_col, conf_col = st.columns([2, 1])
+                    badge_col.caption(f"👤 {row['Author']}")
+                    conf_col.markdown(
+                        f"<span style='background:#fee2e2;color:#b91c1c;border-radius:8px;"
+                        f"padding:.1rem .5rem;font-size:.73rem;font-weight:700;font-family:monospace;'>"
+                        f"{row['Confidence']*100:.1f}% conf</span>",
+                        unsafe_allow_html=True,
+                    )
 
     with rel_col:
         st.markdown("**🟢 Top Relevant**")
-        relevant = (
-            df[df["Prediction"] == "Relevant"]
-            .sort_values("Confidence", ascending=False)
-            .head(20)
-        )
-        if relevant.empty:
-            st.info("No relevant comments detected.")
+        if relevant_df.empty:
+            st.warning("No relevant comments detected.")
         else:
-            items_html = ""
-            for _, row in relevant.iterrows():
-                items_html += f"""
-                <div class="comment-item relevant">
-                    <div class="comment-item-text">{truncate_text(row['Comment'], 140)}</div>
-                    <div class="comment-item-meta">
-                        <span>👤 {row['Author']}</span>
-                        <span class="conf-chip high-rel">{row['Confidence']*100:.1f}% confidence</span>
-                    </div>
-                </div>
-                """
-            st.markdown(
-                f'<div style="max-height:480px;overflow-y:auto;padding-right:4px;">{items_html}</div>',
-                unsafe_allow_html=True,
-            )
+            for _, row in relevant_df.iterrows():
+                with st.container(border=True):
+                    st.markdown(
+                        f"<span style='font-size:.87rem;color:#0F0F0F;'>{truncate_text(row['Comment'], 150)}</span>",
+                        unsafe_allow_html=True,
+                    )
+                    badge_col, conf_col = st.columns([2, 1])
+                    badge_col.caption(f"👤 {row['Author']}")
+                    conf_col.markdown(
+                        f"<span style='background:#dcfce7;color:#15803d;border-radius:8px;"
+                        f"padding:.1rem .5rem;font-size:.73rem;font-weight:700;font-family:monospace;'>"
+                        f"{row['Confidence']*100:.1f}% conf</span>",
+                        unsafe_allow_html=True,
+                    )
 
-    # ── 6. Comment analytics ──────────────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">📈 Comment Analytics<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
+    st.divider()
 
-    viz_col1, viz_col2 = st.columns(2)
+    # ── 6. Analytics ─────────────────────────────────────────────────────
+    st.markdown('<div class="cg-section">📊 Comment Analytics</div>', unsafe_allow_html=True)
 
-    with viz_col1:
-        pie_fig = px.pie(
+    v1, v2 = st.columns(2)
+
+    with v1:
+        pie = px.pie(
             names=["Relevant", "Irrelevant"],
             values=[n_relevant, n_irrelevant],
             color=["Relevant", "Irrelevant"],
-            color_discrete_map={"Relevant": "#22c55e", "Irrelevant": "#ef4444"},
-            hole=0.5,
+            color_discrete_map={"Relevant": "#22c55e", "Irrelevant": "#FF0000"},
+            hole=0.50,
             title="Comment Distribution",
         )
-        pie_fig.update_traces(textposition="inside", textinfo="percent+label")
-        pie_fig.update_layout(
-            showlegend=True,
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_family="Inter",
-            title_font_size=14,
+        pie.update_traces(textposition="inside", textinfo="percent+label")
+        pie.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font_family="Roboto", title_font_size=14,
             margin=dict(t=50, b=20, l=20, r=20),
         )
-        st.plotly_chart(pie_fig, use_container_width=True)
+        st.plotly_chart(pie, use_container_width=True)
 
-    with viz_col2:
-        conf_fig = px.histogram(
-            df,
-            x="Confidence",
-            color="Prediction",
-            nbins=20,
-            barmode="overlay",
-            color_discrete_map={"Relevant": "#22c55e", "Irrelevant": "#ef4444"},
-            labels={"Confidence": "Confidence Score", "count": "Number of Comments"},
+    with v2:
+        hist = px.histogram(
+            df, x="Confidence", color="Prediction", nbins=20, barmode="overlay",
+            color_discrete_map={"Relevant": "#22c55e", "Irrelevant": "#FF0000"},
+            labels={"Confidence": "Confidence Score"},
             title="Confidence Score Distribution",
-            opacity=0.75,
+            opacity=0.78,
         )
-        conf_fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_family="Inter",
-            title_font_size=14,
-            yaxis=dict(gridcolor="#f1f5f9"),
+        hist.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font_family="Roboto", title_font_size=14,
+            yaxis=dict(gridcolor="#F2F2F2"),
             margin=dict(t=50, b=20, l=20, r=20),
         )
-        st.plotly_chart(conf_fig, use_container_width=True)
+        st.plotly_chart(hist, use_container_width=True)
 
     with st.expander("👍 Like Count vs Prediction"):
-        like_fig = px.box(
-            df,
-            x="Prediction",
-            y="Likes",
-            color="Prediction",
-            color_discrete_map={"Relevant": "#22c55e", "Irrelevant": "#ef4444"},
-            points="outliers",
-            title="Like Count Distribution by Prediction",
+        box = px.box(
+            df, x="Prediction", y="Likes", color="Prediction",
+            color_discrete_map={"Relevant": "#22c55e", "Irrelevant": "#FF0000"},
+            points="outliers", title="Like Count by Prediction",
         )
-        like_fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font_family="Inter",
-            yaxis=dict(gridcolor="#f1f5f9"),
-            showlegend=False,
+        box.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font_family="Roboto", yaxis=dict(gridcolor="#F2F2F2"), showlegend=False,
         )
-        st.plotly_chart(like_fig, use_container_width=True)
+        st.plotly_chart(box, use_container_width=True)
+
+    st.divider()
 
     # ── 7. Comment Explorer ───────────────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">🔎 Comment Explorer<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="cg-section">🔎 Comment Explorer</div>', unsafe_allow_html=True)
 
-    filter_col, search_col, sort_col = st.columns([2, 4, 2])
-
-    with filter_col:
-        pred_filter = st.selectbox(
-            "Filter",
-            ["All", "Relevant", "Irrelevant"],
-            label_visibility="collapsed",
-        )
-
-    with search_col:
-        search_query = st.text_input(
-            "Search",
-            placeholder="🔎 Search comment…",
-            label_visibility="collapsed",
-        )
-
+    f_col, s_col, sort_col = st.columns([2, 4, 2])
+    with f_col:
+        pred_filter = st.selectbox("Filter", ["All", "Relevant", "Irrelevant"], label_visibility="collapsed")
+    with s_col:
+        search_q = st.text_input("Search", placeholder="🔎 Search comment…", label_visibility="collapsed")
     with sort_col:
-        sort_option = st.selectbox(
-            "Sort by",
-            ["Newest first", "Confidence (high → low)", "Confidence (low → high)", "Most liked"],
+        sort_opt = st.selectbox(
+            "Sort", ["Default", "Confidence ↓", "Confidence ↑", "Most Liked"],
             label_visibility="collapsed",
         )
 
-    filtered_df = df.copy()
+    fdf = df.copy()
     if pred_filter != "All":
-        filtered_df = filtered_df[filtered_df["Prediction"] == pred_filter]
-    if search_query.strip():
-        mask = filtered_df["Comment"].str.contains(search_query.strip(), case=False, na=False)
-        filtered_df = filtered_df[mask]
-
-    if sort_option == "Confidence (high → low)":
-        filtered_df = filtered_df.sort_values("Confidence", ascending=False)
-    elif sort_option == "Confidence (low → high)":
-        filtered_df = filtered_df.sort_values("Confidence", ascending=True)
-    elif sort_option == "Most liked":
-        filtered_df = filtered_df.sort_values("Likes", ascending=False)
+        fdf = fdf[fdf["Prediction"] == pred_filter]
+    if search_q.strip():
+        fdf = fdf[fdf["Comment"].str.contains(search_q.strip(), case=False, na=False)]
+    if sort_opt == "Confidence ↓":
+        fdf = fdf.sort_values("Confidence", ascending=False)
+    elif sort_opt == "Confidence ↑":
+        fdf = fdf.sort_values("Confidence", ascending=True)
+    elif sort_opt == "Most Liked":
+        fdf = fdf.sort_values("Likes", ascending=False)
     else:
-        filtered_df = filtered_df.sort_values("No", ascending=True)
+        fdf = fdf.sort_values("No")
 
-    st.caption(f"Showing **{len(filtered_df)}** of **{n_total}** comments")
+    PAGE_SIZE  = 25
+    total_pages = max(1, (len(fdf) - 1) // PAGE_SIZE + 1)
+    pg = max(1, min(int(st.session_state["explorer_page"]), total_pages))
+    st.session_state["explorer_page"] = pg
 
-    PAGE_SIZE = 25
-    total_pages = max(1, (len(filtered_df) - 1) // PAGE_SIZE + 1)
+    st.caption(f"Showing **{len(fdf)}** of **{n_total}** comments · Page {pg}/{total_pages}")
 
-    if "explorer_page" not in st.session_state:
-        st.session_state["explorer_page"] = 1
-    st.session_state["explorer_page"] = min(st.session_state["explorer_page"], total_pages)
-
-    if filtered_df.empty:
-        st.info("No comments match your filter/search criteria.")
+    if fdf.empty:
+        st.info("No comments match your criteria.")
     else:
-        start = (st.session_state["explorer_page"] - 1) * PAGE_SIZE
-        page_df = filtered_df.iloc[start : start + PAGE_SIZE]
+        page_df = fdf.iloc[(pg-1)*PAGE_SIZE : pg*PAGE_SIZE]
+        disp = page_df[["No", "Comment", "Prediction", "Confidence_pct", "Likes", "Author"]].copy()
+        disp.columns = ["No", "Comment", "Prediction", "Confidence", "Likes", "Author"]
 
-        display_df = page_df[["No", "Comment", "Prediction", "Confidence_pct", "Likes"]].copy()
-        display_df.columns = ["No", "Comment", "Prediction", "Confidence", "Likes"]
-
-        def highlight_row(row):
-            color = "#f0fdf4" if row["Prediction"] == "Relevant" else "#fef2f2"
-            return [f"background-color: {color}"] * len(row)
-
-        styled = display_df.style.apply(highlight_row, axis=1)
+        def _hl(row):
+            bg = "#f0fdf4" if row["Prediction"] == "Relevant" else "#fff1f2"
+            return [f"background-color:{bg}"] * len(row)
 
         st.dataframe(
-            styled,
+            disp.style.apply(_hl, axis=1),
             use_container_width=True,
             hide_index=True,
             column_config={
-                "No": st.column_config.NumberColumn(width="small"),
-                "Comment": st.column_config.TextColumn(width="large"),
+                "No":         st.column_config.NumberColumn(width="small"),
+                "Comment":    st.column_config.TextColumn(width="large"),
                 "Prediction": st.column_config.TextColumn(width="medium"),
                 "Confidence": st.column_config.TextColumn(width="small"),
-                "Likes": st.column_config.NumberColumn(width="small"),
+                "Likes":      st.column_config.NumberColumn(width="small"),
+                "Author":     st.column_config.TextColumn(width="medium"),
             },
         )
 
-        pg_col1, pg_col2, pg_col3 = st.columns([1, 2, 1])
-        with pg_col1:
-            if st.button("⬅ Previous", disabled=st.session_state["explorer_page"] <= 1):
-                st.session_state["explorer_page"] -= 1
+        pc1, pc2, pc3 = st.columns([1, 2, 1])
+        with pc1:
+            if st.button("⬅ Prev", disabled=pg <= 1):
+                st.session_state["explorer_page"] = pg - 1
                 st.rerun()
-        with pg_col2:
+        with pc2:
             st.markdown(
-                f"<p style='text-align:center;color:#64748b;font-size:0.85rem;padding-top:6px;'>"
-                f"Page {st.session_state['explorer_page']} of {total_pages}</p>",
+                f"<p style='text-align:center;color:#606060;font-size:.83rem;padding-top:5px;'>"
+                f"Page {pg} of {total_pages}</p>",
                 unsafe_allow_html=True,
             )
-        with pg_col3:
-            if st.button("Next ➡", disabled=st.session_state["explorer_page"] >= total_pages):
-                st.session_state["explorer_page"] += 1
+        with pc3:
+            if st.button("Next ➡", disabled=pg >= total_pages):
+                st.session_state["explorer_page"] = pg + 1
                 st.rerun()
 
-    # ── 9. Moderation report ──────────────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">📋 Moderation Report<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
+    st.divider()
 
-    avg_conf = df["Confidence"].mean()
-    low_conf_count = int(df["Low_Confidence"].sum())
-    moderation_required = "Yes" if pct_irr >= 0.10 else "No"
+    # ── 8. Moderation Report ──────────────────────────────────────────────
+    st.markdown('<div class="cg-section">📋 Moderation Report</div>', unsafe_allow_html=True)
 
-    report_text = f"""  Video Health Score      : {health['score']}/100  ({health['tier']})
+    mod_req = "Yes — manual moderation recommended." if pct_irr >= 0.10 else "No — discussion looks healthy."
 
-  Total comments analyzed : {n_total}
-  Relevant comments       : {n_relevant}
-  Irrelevant comments     : {n_irrelevant}
+    report_txt = f"""  Video Health Score       : {health['score']}/100  ({health['tier']})
+  ─────────────────────────────────────────────
+  Total comments analyzed  : {n_total}
+  Relevant comments        : {n_relevant}
+  Irrelevant comments      : {n_irrelevant}
 
   Relevant Rate            : {pct_rel*100:.1f}%
   Irrelevant Rate          : {pct_irr*100:.1f}%
   Avg Confidence Score     : {avg_conf*100:.1f}%
-  Low Confidence Flags     : {low_conf_count}
-
+  Low Confidence Flags     : {low_conf}
+  ─────────────────────────────────────────────
   Recommendation:
   {mod['recommendation']}
 
-  Moderation required      : {moderation_required}"""
+  Moderation Required      : {mod_req}"""
 
     st.markdown(
-        f"""
-        <div class="report-card" style="background:{health['bg']};border:1.5px solid {health['color']}40;color:{health['color']};">
-            <pre style="margin:0;white-space:pre-wrap;font-family:inherit;font-size:inherit;">{report_text}</pre>
-        </div>
-        """,
+        f'<div class="cg-report" style="background:{health["bg"]};border:1.5px solid {health["color"]}35;color:{health["color"]};">'
+        f'<pre style="margin:0;white-space:pre-wrap;font-family:inherit;font-size:inherit;">{report_txt}</pre>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
-    # ── 10. Export ────────────────────────────────────────────────────────
-    st.markdown(
-        '<div class="section-heading">⬇️ Export<div class="line"></div></div>',
-        unsafe_allow_html=True,
-    )
+    st.divider()
 
-    exp_col1, exp_col2, exp_col3 = st.columns(3)
+    # ── 9. Export ─────────────────────────────────────────────────────────
+    st.markdown('<div class="cg-section">⬇️ Export</div>', unsafe_allow_html=True)
 
-    full_export = df[["No", "Comment", "Author", "Prediction", "Confidence_pct", "Likes", "Published"]].copy()
-    full_export = full_export.rename(columns={"Confidence_pct": "Confidence"})
+    full_exp     = df[["No","Comment","Author","Prediction","Confidence_pct","Likes","Published"]].rename(columns={"Confidence_pct":"Confidence"})
+    flagged_exp  = full_exp[full_exp["Prediction"] == "Irrelevant"]
 
-    flagged_export = full_export[full_export["Prediction"] == "Irrelevant"].copy()
+    e1, e2, e3 = st.columns(3)
 
-    with exp_col1:
+    with e1:
         buf = io.StringIO()
-        full_export.to_csv(buf, index=False)
+        full_exp.to_csv(buf, index=False)
         st.download_button(
-            "📄 Download All Comments (CSV)",
-            data=buf.getvalue(),
-            file_name="prediction_results.csv",
-            mime="text/csv",
+            "📄 All Comments (CSV)", buf.getvalue(),
+            file_name="prediction_results.csv", mime="text/csv",
             use_container_width=True,
         )
 
-    with exp_col2:
+    with e2:
         buf2 = io.StringIO()
-        flagged_export.to_csv(buf2, index=False)
+        flagged_exp.to_csv(buf2, index=False)
         st.download_button(
-            "🚩 Download Flagged Comments (CSV)",
-            data=buf2.getvalue(),
-            file_name="flagged_comments.csv",
-            mime="text/csv",
+            "🚩 Flagged Comments (CSV)", buf2.getvalue(),
+            file_name="flagged_comments.csv", mime="text/csv",
             use_container_width=True,
         )
 
-    with exp_col3:
-        report_buf = io.StringIO()
-        report_buf.write("YOUTUBE COMMENT MODERATION REPORT\n")
-        report_buf.write("=" * 40 + "\n\n")
-        report_buf.write(f"Video: {meta['title']}\n")
-        report_buf.write(f"Channel: {meta['channel_name']}\n\n")
-        report_buf.write(report_text.replace("  ", ""))
+    with e3:
+        rbuf = io.StringIO()
+        rbuf.write("COMMENTGUARD — MODERATION REPORT\n")
+        rbuf.write("=" * 42 + "\n\n")
+        rbuf.write(f"Video   : {meta['title']}\n")
+        rbuf.write(f"Channel : {meta['channel_name']}\n\n")
+        rbuf.write(report_txt.strip())
         st.download_button(
-            "📊 Download Analysis Report (TXT)",
-            data=report_buf.getvalue(),
-            file_name="moderation_report.txt",
-            mime="text/plain",
+            "📊 Analysis Report (TXT)", rbuf.getvalue(),
+            file_name="moderation_report.txt", mime="text/plain",
             use_container_width=True,
         )
 
@@ -954,22 +696,20 @@ if st.session_state["analysis_done"] and st.session_state["results_df"] is not N
 
 elif not st.session_state["analysis_done"]:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div style="text-align:center;padding:3rem 1rem;color:#94a3b8;">
-            <div style="font-size:3.2rem;margin-bottom:0.8rem;">🛡️</div>
-            <h3 style="color:#475569;font-weight:700;">Ready to Moderate</h3>
-            <p style="max-width:480px;margin:0 auto;font-size:0.9rem;">
-                Paste a YouTube video URL above and click <strong>Analyze</strong> to get a
-                full comment relevance breakdown, health score, and moderation recommendation.
-            </p>
-            <div style="margin-top:1.4rem;display:flex;justify-content:center;gap:1.8rem;font-size:0.82rem;color:#64748b;flex-wrap:wrap;">
-                <span>🩺 Health score</span>
-                <span>🚩 Flagged comments</span>
-                <span>📈 Analytics</span>
-                <span>📋 Moderation report</span>
-            </div>
+    st.markdown("""
+    <div style="text-align:center;padding:3rem 1rem;color:#909090;">
+        <div style="font-size:3rem;margin-bottom:.8rem;">🛡️</div>
+        <h3 style="color:#0F0F0F;font-weight:700;">Ready to Analyze</h3>
+        <p style="max-width:460px;margin:.5rem auto 0;font-size:.9rem;">
+            Paste a YouTube video URL and click <strong style="color:#FF0000;">▶ Analyze</strong>
+            to get a full comment relevance breakdown, health score, and moderation report.
+        </p>
+        <div style="margin-top:1.3rem;display:flex;justify-content:center;gap:1.6rem;font-size:.82rem;flex-wrap:wrap;">
+            <span>🩺 Health score</span>
+            <span>🚩 Flagged comments</span>
+            <span>📊 Analytics</span>
+            <span>📋 Moderation report</span>
+            <span>⬇️ Export CSV</span>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+    """, unsafe_allow_html=True)
