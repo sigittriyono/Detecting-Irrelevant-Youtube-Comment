@@ -169,9 +169,9 @@ predictor = load_predictor()
 with st.sidebar:
     st.markdown("""
     <div class="cg-sb-logo">
-        <div style="font-size:2rem;">🛡️</div>
-        <h2>CommentGuard</h2>
-        <p>YouTube Comment Relevance Analyzer</p>
+        <div style="font-size:2rem;">▶</div>
+        <h2>RelevancyTube</h2>
+        <p>Context-Aware YouTube Comment Relevance Detection System</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -213,7 +213,7 @@ with st.sidebar:
 
     with st.expander("ℹ️ About"):
         st.markdown("""
-**CommentGuard** detects irrelevant comments in Indonesian YouTube discussions using a fine-tuned IndoBERT binary classifier.
+**RelevancyTube** detects irrelevant comments in Indonesian YouTube discussions using a fine-tuned IndoBERT binary classifier.
 
 **Research:** UPN Veteran Jawa Timur
 **Model:** IndoBERT-Relevancy
@@ -227,10 +227,10 @@ with st.sidebar:
 st.markdown("""
 <div class="cg-header">
     <div class="cg-header-left">
-        <div class="cg-logo">🛡️</div>
+        <div class="cg-logo">▶</div>
         <div>
-            <h1>CommentGuard</h1>
-            <p>YouTube Comment Relevance Analyzer · Powered by IndoBERT-Relevancy</p>
+            <h1>RelevancyTube</h1>
+            <p>Context-Aware YouTube Comment Relevance Detection System · Powered by IndoBERT-Relevancy</p>
         </div>
     </div>
 </div>
