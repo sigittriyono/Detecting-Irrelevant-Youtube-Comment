@@ -233,7 +233,6 @@ st.markdown("""
             <p>YouTube Comment Relevance Analyzer · Powered by IndoBERT-Relevancy</p>
         </div>
     </div>
-    <div class="cg-pill">🎓 Penelitian UPN Veteran Jawa Timur</div>
 </div>
 """, unsafe_allow_html=True)
 
